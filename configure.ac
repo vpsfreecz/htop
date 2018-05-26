@@ -141,6 +141,11 @@ if test "x$enable_openvz" = xyes; then
    AC_DEFINE(HAVE_OPENVZ, 1, [Define if openvz support enabled.])
 fi
 
+AC_ARG_ENABLE(vpsadminos, [AS_HELP_STRING([--enable-vpsadminos], [enable vpsAdminOS support])], ,enable_vpsadminos="no")
+if test "x$enable_vpsadminos" = xyes; then
+   AC_DEFINE(HAVE_VPSADMINOS, 1, [Define if vpsAdminOS support enabled.])
+fi
+
 AC_ARG_ENABLE(cgroup, [AS_HELP_STRING([--enable-cgroup], [enable cgroups support])], ,enable_cgroup="no")
 if test "x$enable_cgroup" = xyes; then
    AC_DEFINE(HAVE_CGROUP, 1, [Define if cgroup support enabled.])

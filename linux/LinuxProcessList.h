@@ -119,6 +119,10 @@ void ProcessList_delete(ProcessList* pl);
 
 #endif
 
+#ifdef HAVE_VPSADMINOS
+
+#endif
+
 #ifdef HAVE_DELAYACCT
 
 #endif

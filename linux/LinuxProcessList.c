@@ -582,6 +582,60 @@ static void LinuxProcessList_readVServerData(LinuxProcess* process, const char* 
 
 #endif
 
+#ifdef HAVE_VPSADMINOS
+
+static void LinuxProcessList_readVpsAdminOSData(LinuxProcess* process, const char* dirname, const char* name) {
+   char filename[MAX_NAME+1];
+   xSnprintf(filename, MAX_NAME, "%s/%s/cgroup", dirname, name);
+
+   FILE* file = fopen(filename, "r");
+   if (!file)
+      return;
+
+   char buffer[PROC_LINE_LENGTH + 1];
+   char *ok = fgets(buffer, PROC_LINE_LENGTH, file);
+   if (!ok)
+      goto err;
+
+   // <n>:<cgroup>:/osctl/pool.<name>/group.<name>[/group.<name>]/user.<name>/ct.<id>/user-owned/...
+   char *t;
+   char *poolStr = "/osctl/pool.";
+   char *ctStr = "/ct.";
+   size_t poolStrLen = strlen(poolStr);
+
+   t = strstr(buffer, poolStr);
+   if (!t)
+      goto err;
+
+   char pool[MAX_NAME+1];
+   char ctid[MAX_NAME+1];
+   unsigned int pos = 0;
+
+   if (sscanf(t + poolStrLen, "%[^/]%n", pool, &pos) != 1)
+      goto err;
+
+   t = strstr(t + poolStrLen + pos, ctStr);
+   if (!t)
+      goto err;
+
+   if (sscanf(t + strlen(ctStr), "%[^/]", ctid) != 1)
+      goto err;
+
+   process->pool = xStrdup(pool);
+   process->ctid = xStrdup(ctid);
+   fclose(file);
+   return;
+
+err:
+   if (file)
+      fclose(file);
+
+   process->pool = NULL;
+   process->ctid = NULL;
+}
+
+#endif
+
 static void LinuxProcessList_readOomData(LinuxProcess* process, const char* dirname, const char* name) {
    char filename[MAX_NAME+1];
    xSnprintf(filename, MAX_NAME, "%s/%s/oom_score", dirname, name);
@@ -850,6 +904,12 @@ static bool LinuxProcessList_recurseProcTree(LinuxProcessList* this, const char*
          #ifdef HAVE_VSERVER
          if (settings->flags & PROCESS_FLAG_LINUX_VSERVER) {
             LinuxProcessList_readVServerData(lp, dirname, name);
+         }
+         #endif
+
+         #ifdef HAVE_VPSADMINOS
+         if (settings->flags & PROCESS_FLAG_LINUX_VPSADMINOS) {
+            LinuxProcessList_readVpsAdminOSData(lp, dirname, name);
          }
          #endif
 

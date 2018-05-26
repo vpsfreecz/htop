@@ -10,11 +10,12 @@ in the source distribution for its full text.
 */
 
 
-#define PROCESS_FLAG_LINUX_IOPRIO   0x0100
-#define PROCESS_FLAG_LINUX_OPENVZ   0x0200
-#define PROCESS_FLAG_LINUX_VSERVER  0x0400
-#define PROCESS_FLAG_LINUX_CGROUP   0x0800
-#define PROCESS_FLAG_LINUX_OOM      0x1000
+#define PROCESS_FLAG_LINUX_IOPRIO      0x0100
+#define PROCESS_FLAG_LINUX_OPENVZ      0x0200
+#define PROCESS_FLAG_LINUX_VSERVER     0x0400
+#define PROCESS_FLAG_LINUX_CGROUP      0x0800
+#define PROCESS_FLAG_LINUX_OOM         0x1000
+#define PROCESS_FLAG_LINUX_VPSADMINOS  0x2000
 
 typedef enum UnsupportedProcessFields {
    FLAGS = 9,
@@ -78,7 +79,11 @@ typedef enum LinuxProcessFields {
    PERCENT_IO_DELAY = 117,
    PERCENT_SWAP_DELAY = 118,
    #endif
-   LAST_PROCESSFIELD = 119,
+   #ifdef HAVE_VPSADMINOS
+   OSCTL_POOL=119,
+   OSCTL_CTID = 120,
+   #endif
+   LAST_PROCESSFIELD = 121,
 } LinuxProcessField;
 
 #include "IOPriority.h"
@@ -132,6 +137,10 @@ typedef struct LinuxProcess_ {
    float cpu_delay_percent;
    float blkio_delay_percent;
    float swapin_delay_percent;
+   #endif
+   #ifdef HAVE_VPSADMINOS
+   char *pool;
+   char *ctid;
    #endif
 } LinuxProcess;
 
