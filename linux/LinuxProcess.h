@@ -82,8 +82,9 @@ typedef enum LinuxProcessFields {
    #ifdef HAVE_VPSADMINOS
    OSCTL_POOL=119,
    OSCTL_CTID = 120,
+   NS_UID = 121,
    #endif
-   LAST_PROCESSFIELD = 121,
+   LAST_PROCESSFIELD = 122,
 } LinuxProcessField;
 
 #include "IOPriority.h"
@@ -141,6 +142,7 @@ typedef struct LinuxProcess_ {
    #ifdef HAVE_VPSADMINOS
    char *pool;
    char *ctid;
+   uid_t ns_uid;
    #endif
 } LinuxProcess;
 

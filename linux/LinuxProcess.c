@@ -91,8 +91,9 @@ typedef enum LinuxProcessFields {
    #ifdef HAVE_VPSADMINOS
    OSCTL_POOL=119,
    OSCTL_CTID = 120,
+   NS_UID = 121,
    #endif
-   LAST_PROCESSFIELD = 121,
+   LAST_PROCESSFIELD = 122,
 } LinuxProcessField;
 
 #include "IOPriority.h"
@@ -150,6 +151,7 @@ typedef struct LinuxProcess_ {
    #ifdef HAVE_VPSADMINOS
    char *pool;
    char *ctid;
+   uid_t ns_uid;
    #endif
 } LinuxProcess;
 
@@ -251,6 +253,7 @@ ProcessFieldData Process_fields[] = {
 #ifdef HAVE_VPSADMINOS
    [OSCTL_POOL] = { .name = "Pool", .title = "   Pool ", .description = "vpsAdminOS pool name", .flags = PROCESS_FLAG_LINUX_VPSADMINOS, },
    [OSCTL_CTID] = { .name = "CTID", .title = "   CTID ", .description = "vpsAdminOS container ID", .flags = PROCESS_FLAG_LINUX_VPSADMINOS, },
+   [NS_UID] = { .name = "NSUID", .title = "  NSUID ", .description = "user ID within user namespace", .flags = PROCESS_FLAG_LINUX_VPSADMINOS, },
 #endif
    [LAST_PROCESSFIELD] = { .name = "*** report bug! ***", .title = NULL, .description = NULL, .flags = 0, },
 };
@@ -430,6 +433,8 @@ void LinuxProcess_writeField(Process* this, RichString* str, ProcessField field)
       xSnprintf(buffer, n, "%7s ", lp->pool ? lp->pool : "-"); break;
    case OSCTL_CTID:
       xSnprintf(buffer, n, "%7s ", lp->ctid ? lp->ctid : "-"); break;
+   case NS_UID:
+      xSnprintf(buffer, n, "%7u ", lp->ctid ? lp->ns_uid : lp->super.st_uid); break;
    #endif
    default:
       Process_writeField((Process*)this, str, field);
@@ -529,6 +534,8 @@ long LinuxProcess_compare(const void* v1, const void* v2) {
       else
          return 0;
    }
+   case NS_UID:
+      return (long int)(p2->ns_uid - p1->ns_uid);
    #endif
    default:
       return Process_compare(v1, v2);

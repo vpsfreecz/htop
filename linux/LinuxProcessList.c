@@ -584,6 +584,31 @@ static void LinuxProcessList_readVServerData(LinuxProcess* process, const char* 
 
 #ifdef HAVE_VPSADMINOS
 
+static unsigned int LinuxProcessList_readVpsAdminOSUgid(const char* dirname, const char* name, unsigned int host_id, const char *map) {
+   char filename[MAX_NAME+1];
+   xSnprintf(filename, MAX_NAME, "%s/%s/%s", dirname, name, map);
+
+   FILE* file = fopen(filename, "r");
+   if (!file)
+      return host_id;
+
+   char buffer[PROC_LINE_LENGTH + 1];
+   unsigned int ns_start, host_start, count;
+
+   while (fgets(buffer, PROC_LINE_LENGTH, file)) {
+      if (sscanf(buffer, "%u %u %u", &ns_start, &host_start, &count) != 3)
+         continue;
+
+      if (host_id >= host_start && host_id < (host_start + count)) {
+         fclose(file);
+         return (host_id - host_start) + ns_start;
+      }
+   }
+
+   fclose(file);
+   return host_id;
+}
+
 static void LinuxProcessList_readVpsAdminOSData(LinuxProcess* process, const char* dirname, const char* name) {
    char filename[MAX_NAME+1];
    xSnprintf(filename, MAX_NAME, "%s/%s/cgroup", dirname, name);
@@ -624,6 +649,8 @@ static void LinuxProcessList_readVpsAdminOSData(LinuxProcess* process, const cha
    process->pool = xStrdup(pool);
    process->ctid = xStrdup(ctid);
    fclose(file);
+
+   process->ns_uid = (uid_t) LinuxProcessList_readVpsAdminOSUgid(dirname, name, process->super.st_uid, "uid_map");
    return;
 
 err:
@@ -632,6 +659,7 @@ err:
 
    process->pool = NULL;
    process->ctid = NULL;
+   process->ns_uid = process->super.st_uid;
 }
 
 #endif
