@@ -28,6 +28,14 @@ in the source distribution for its full text.
 #define MAX_READ 2048
 #endif
 
+#ifdef HAVE_VPSADMINOS
+typedef enum ContainerFilter_ {
+   CTFILTER_ALL,
+   CTFILTER_HOST,
+   CTFILTER_CONTAINER,
+} ContainerFilter;
+#endif
+
 typedef struct ProcessList_ {
    Settings* settings;
 
@@ -63,6 +71,12 @@ typedef struct ProcessList_ {
    unsigned long long int freeSwap;
 
    int cpuCount;
+
+   #ifdef HAVE_VPSADMINOS
+   ContainerFilter ctFilter;
+   char pool[128];
+   char ctid[128];
+   #endif
 
 } ProcessList;
 

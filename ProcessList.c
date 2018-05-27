@@ -34,6 +34,14 @@ in the source distribution for its full text.
 #define MAX_READ 2048
 #endif
 
+#ifdef HAVE_VPSADMINOS
+typedef enum ContainerFilter_ {
+   CTFILTER_ALL,
+   CTFILTER_HOST,
+   CTFILTER_CONTAINER,
+} ContainerFilter;
+#endif
+
 typedef struct ProcessList_ {
    Settings* settings;
 
@@ -70,6 +78,12 @@ typedef struct ProcessList_ {
 
    int cpuCount;
 
+   #ifdef HAVE_VPSADMINOS
+   ContainerFilter ctFilter;
+   char pool[128];
+   char ctid[128];
+   #endif
+
 } ProcessList;
 
 ProcessList* ProcessList_new(UsersTable* ut, Hashtable* pidWhiteList, uid_t userId);
@@ -84,6 +98,12 @@ ProcessList* ProcessList_init(ProcessList* this, ObjectClass* klass, UsersTable*
    this->usersTable = usersTable;
    this->pidWhiteList = pidWhiteList;
    this->userId = userId;
+
+   #ifdef HAVE_VPSADMINS
+   this->ctFilter = ContainerFilter::ALL;
+   this->pool[0] = '\0';
+   this->ctid[0] = '\0';
+   #endif
    
    // tree-view auxiliary buffer
    this->processes2 = Vector_new(klass, true, DEFAULT_SIZE);
@@ -312,6 +332,32 @@ void ProcessList_rebuildPanel(ProcessList* this) {
          || (incFilter && !(String_contains_i(p->comm, incFilter)))
          || (this->pidWhiteList && !Hashtable_get(this->pidWhiteList, p->tgid)) )
          hidden = true;
+
+      #ifdef HAVE_VPSADMINOS
+      if (!hidden) {
+         switch (this->ctFilter) {
+         case CTFILTER_ALL:
+            break;
+         case CTFILTER_HOST: {
+            LinuxProcess *lp = (LinuxProcess*) p;
+
+            if (lp->pool)
+               hidden = true;
+            break;
+         }
+         case CTFILTER_CONTAINER: {
+            LinuxProcess *lp = (LinuxProcess*) p;
+
+            if (  !lp->pool
+               || !lp->ctid
+               || strcmp(lp->pool, this->pool) != 0
+               || strcmp(lp->ctid, this->ctid) != 0)
+               hidden = true;
+            break;
+         }
+         }
+      }
+      #endif
 
       if (!hidden) {
          Panel_set(this->panel, idx, (Object*)p);

@@ -29,6 +29,10 @@ in the source distribution for its full text.
 #include <stdbool.h>
 #include <sys/param.h>
 #include <sys/time.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
+#include <string.h>
 
 /*{
 
@@ -405,6 +409,100 @@ static Htop_Reaction actionRedraw() {
    return HTOP_REFRESH | HTOP_REDRAW_BAR;
 }
 
+#ifdef HAVE_VPSADMINOS
+
+static void addContainers(Panel *ctsPanel) {
+   int fd[2];
+
+   if (pipe(fd) == -1)
+      return;
+
+   pid_t pid = fork();
+
+   if (pid == 0) {
+      close(fd[0]);
+      dup2(fd[1], 1);
+
+      char *argv[] = {
+         "osctl", "ct", "ls", "-H", "-o", "pool,id", "-S", "running", NULL
+      };
+
+      execvp("osctl", argv);
+      exit(1);
+   }
+
+   close(fd[1]);
+
+   char buffer[256];
+   char result[256];
+   char *rest;
+   char *newLine, *line;
+   char pool[128], ctid[128];
+   int i = 0;
+
+   buffer[0] = '\0';
+
+   while (read(fd[0], buffer + strlen(buffer), 255 - strlen(buffer))) {
+      rest = buffer;
+
+      while ((newLine = strchr(rest, '\n'))) {
+         line = rest;
+         newLine[0] = '\0';
+         rest = newLine + 1;
+
+         if (sscanf(line, "%s %s", pool, ctid) != 2)
+            continue;
+
+         xSnprintf(result, 255, "%s:%s", pool, ctid);
+         Panel_add(ctsPanel, (Object*) ListItem_new(result, i));
+         i++;
+      }
+
+      if (strlen(rest) > 0)
+         strcpy(buffer, rest);
+   }
+
+   close(fd[0]);
+   waitpid(pid, NULL, 0);
+}
+
+bool Action_setContainerOnly(ProcessList *pl, const char* pool, const char* ctid) {
+   pl->ctFilter = CTFILTER_CONTAINER;
+   strcpy(pl->pool, pool);
+   strcpy(pl->ctid, ctid);
+   return true;
+}
+
+static Htop_Reaction actionFilterByContainer(State* st) {
+   Panel* ctsPanel = Panel_new(0, 0, 0, 0, true, Class(ListItem), FunctionBar_newEnterEsc("Show   ", "Cancel "));
+   Panel_setHeader(ctsPanel, "Show processes of:");
+
+   addContainers(ctsPanel);
+
+   Vector_insertionSort(ctsPanel->items);
+   ListItem* host = ListItem_new("Host", -1);
+   ListItem* all = ListItem_new("All", -1);
+   Panel_insert(ctsPanel, 0, (Object*) host);
+   Panel_insert(ctsPanel, 0, (Object*) all);
+   ListItem* picked = (ListItem*) Action_pickFromVector(st, ctsPanel, 20);
+   if (picked) {
+      if (picked == all) {
+         st->pl->ctFilter = CTFILTER_ALL;
+      } else if (picked == host) {
+         st->pl->ctFilter = CTFILTER_HOST;
+      } else {
+         const char *name = ListItem_getRef(picked);
+         char pool[128], ctid[128];
+         sscanf(name, "%[^:]:%s", pool, ctid);
+         Action_setContainerOnly(st->pl, pool, ctid);
+      }
+   }
+   Panel_delete((Object*)ctsPanel);
+   return HTOP_REFRESH | HTOP_REDRAW_BAR | HTOP_UPDATE_PANELHDR;
+}
+
+#endif
+
 static const struct { const char* key; const char* info; } helpLeft[] = {
    { .key = " Arrows: ", .info = "scroll process list" },
    { .key = " Digits: ", .info = "incremental PID search" },
@@ -596,5 +694,9 @@ void Action_setBindings(Htop_Action* keys) {
    keys['U'] = actionUntagAll;
    keys['c'] = actionTagAllChildren;
    keys['e'] = actionShowEnvScreen;
+
+   #ifdef HAVE_VPSADMINOS
+   keys['n'] = actionFilterByContainer;
+   #endif
 }
 

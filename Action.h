@@ -51,6 +51,12 @@ Htop_Reaction Action_setSortKey(Settings* settings, ProcessField sortKey);
 
 Htop_Reaction Action_follow(State* st);
 
+#ifdef HAVE_VPSADMINOS
+
+bool Action_setContainerOnly(ProcessList *pl, const char* pool, const char* ctid);
+
+#endif
+
 
 void Action_setBindings(Htop_Action* keys);
 
