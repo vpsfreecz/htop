@@ -467,9 +467,9 @@ static void addContainers(Panel *ctsPanel) {
 }
 
 bool Action_setContainerOnly(ProcessList *pl, const char* pool, const char* ctid) {
-   pl->ctFilter = CTFILTER_CONTAINER;
-   strcpy(pl->pool, pool);
-   strcpy(pl->ctid, ctid);
+   pl->ctFilter.type = CTFILTER_CONTAINER;
+   strcpy(pl->ctFilter.pool, pool);
+   strcpy(pl->ctFilter.ctid, ctid);
    return true;
 }
 
@@ -487,9 +487,9 @@ static Htop_Reaction actionFilterByContainer(State* st) {
    ListItem* picked = (ListItem*) Action_pickFromVector(st, ctsPanel, 20);
    if (picked) {
       if (picked == all) {
-         st->pl->ctFilter = CTFILTER_ALL;
+         st->pl->ctFilter.type = CTFILTER_ALL;
       } else if (picked == host) {
-         st->pl->ctFilter = CTFILTER_HOST;
+         st->pl->ctFilter.type = CTFILTER_HOST;
       } else {
          const char *name = ListItem_getRef(picked);
          char pool[128], ctid[128];

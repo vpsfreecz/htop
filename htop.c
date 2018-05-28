@@ -44,6 +44,9 @@ static void printHelpFlag() {
          "-s --sort-key=COLUMN        Sort by COLUMN (try --sort-key=help for a list)\n"
          "-t --tree                   Show the tree view by default\n"
          "-u --user=USERNAME          Show only processes of a given user\n"
+         #ifdef HAVE_VPSADMINOS
+         "-c --container=POOL:CTID    Show only processes of a given container\n"
+         #endif
          "-p --pid=PID,[,PID,PID...]  Show only the given PIDs\n"
          "-v --version                Print version info\n"
          "\n"
@@ -63,6 +66,10 @@ typedef struct CommandLineSettings_ {
    int delay;
    bool useColors;
    bool treeView;
+   #ifdef HAVE_VPSADMINOS
+   ContainerFilter ctFilter;
+   #endif
+
 } CommandLineSettings;
 
 static CommandLineSettings parseArguments(int argc, char** argv) {
@@ -74,6 +81,13 @@ static CommandLineSettings parseArguments(int argc, char** argv) {
       .delay = -1,
       .useColors = true,
       .treeView = false,
+      #ifdef HAVE_VPSADMINOS
+      .ctFilter = {
+         .type = CTFILTER_ALL,
+         .pool = "",
+         .ctid = "",
+      },
+      #endif
    };
 
    static struct option long_opts[] =
@@ -87,12 +101,19 @@ static CommandLineSettings parseArguments(int argc, char** argv) {
       {"no-colour",no_argument,         0, 'C'},
       {"tree",     no_argument,         0, 't'},
       {"pid",      required_argument,   0, 'p'},
+      #ifdef HAVE_VPSADMINOS
+      {"container",required_argument,   0, 'c'},
+      #endif
       {0,0,0,0}
    };
 
    int opt, opti=0;
    /* Parse arguments */
+   #ifdef HAVE_VPSADMINOS
+   while ((opt = getopt_long(argc, argv, "hvCs:td:u:p:c:", long_opts, &opti))) {
+   #else
    while ((opt = getopt_long(argc, argv, "hvCs:td:u:p:", long_opts, &opti))) {
+   #endif
       if (opt == EOF) break;
       switch (opt) {
          case 'h':
@@ -151,6 +172,25 @@ static CommandLineSettings parseArguments(int argc, char** argv) {
 
             break;
          }
+         #ifdef HAVE_VPSADMINOS
+         case 'c':
+            if (strcmp(optarg, "all") == 0) {
+               flags.ctFilter.type = CTFILTER_ALL;
+            } else if (strcmp(optarg, "host") == 0) {
+               flags.ctFilter.type = CTFILTER_HOST;
+            } else if (strchr(optarg, ':')) {
+               if (sscanf(optarg, "%[^:]:%s", flags.ctFilter.pool, flags.ctFilter.ctid) != 2) {
+                  fprintf(stderr, "Error: invalid container id \"%s\".\n", optarg);
+                  exit(1);
+               }
+
+               flags.ctFilter.type = CTFILTER_CONTAINER;
+            } else {
+               fprintf(stderr, "Error: invalid container id \"%s\".\n", optarg);
+               exit(1);
+            }
+            break;
+         #endif
          default:
             exit(1);
       }
@@ -190,7 +230,12 @@ int main(int argc, char** argv) {
    Process_setupColumnWidths();
    
    UsersTable* ut = UsersTable_new();
-   ProcessList* pl = ProcessList_new(ut, flags.pidWhiteList, flags.userId);
+
+   #ifdef HAVE_VPSADMINOS
+   ProcessList* pl = ProcessList_new(ut, flags.pidWhiteList, flags.userId, &flags.ctFilter);
+   #else
+   ProcessList* pl = ProcessList_new(ut, flags.pidWhiteList, flags.userId, NULL);
+   #endif
    
    Settings* settings = Settings_new(pl->cpuCount);
    pl->settings = settings;

@@ -229,11 +229,18 @@ static void LinuxProcessList_initNetlinkSocket(LinuxProcessList* this) {
 
 #endif
 
-ProcessList* ProcessList_new(UsersTable* usersTable, Hashtable* pidWhiteList, uid_t userId) {
+ProcessList* ProcessList_new(UsersTable* usersTable, Hashtable* pidWhiteList, uid_t userId, ContainerFilter *ctFilter) {
    LinuxProcessList* this = xCalloc(1, sizeof(LinuxProcessList));
    ProcessList* pl = &(this->super);
 
    ProcessList_init(pl, Class(LinuxProcess), usersTable, pidWhiteList, userId);
+
+   #ifdef HAVE_VPSADMINOS
+   pl->ctFilter.type = ctFilter->type;
+   strcpy(pl->ctFilter.pool, ctFilter->pool);
+   strcpy(pl->ctFilter.ctid, ctFilter->ctid);
+   #endif
+   
    LinuxProcessList_initTtyDrivers(this);
 
    #ifdef HAVE_DELAYACCT
@@ -634,7 +641,7 @@ static void LinuxProcessList_readVpsAdminOSData(LinuxProcess* process, const cha
 
    char pool[MAX_NAME+1];
    char ctid[MAX_NAME+1];
-   unsigned int pos = 0;
+   int pos = 0;
 
    if (sscanf(t + poolStrLen, "%[^/]%n", pool, &pos) != 1)
       goto err;

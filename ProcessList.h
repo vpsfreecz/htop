@@ -28,13 +28,17 @@ in the source distribution for its full text.
 #define MAX_READ 2048
 #endif
 
-#ifdef HAVE_VPSADMINOS
-typedef enum ContainerFilter_ {
+typedef enum ContainerFilterType_ {
    CTFILTER_ALL,
    CTFILTER_HOST,
    CTFILTER_CONTAINER,
+} ContainerFilterType;
+
+typedef struct ContainerFilter_ {
+   ContainerFilterType type;
+   char pool[128];
+   char ctid[128];
 } ContainerFilter;
-#endif
 
 typedef struct ProcessList_ {
    Settings* settings;
@@ -74,13 +78,15 @@ typedef struct ProcessList_ {
 
    #ifdef HAVE_VPSADMINOS
    ContainerFilter ctFilter;
-   char pool[128];
-   char ctid[128];
    #endif
 
 } ProcessList;
 
+#ifdef HAVE_VPSADMINOS
+ProcessList* ProcessList_new(UsersTable* ut, Hashtable* pidWhiteList, uid_t userId, ContainerFilter *ctFilter);
+#else
 ProcessList* ProcessList_new(UsersTable* ut, Hashtable* pidWhiteList, uid_t userId);
+#endif
 void ProcessList_delete(ProcessList* pl);
 void ProcessList_goThroughEntries(ProcessList* pl);
 
