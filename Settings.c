@@ -413,6 +413,10 @@ Settings* Settings_new(int cpuCount) {
       free(systemSettings);
    }
    if (!ok) {
+      this->changed = true;
+      ok = Settings_read(this, "/etc/htoprc");
+   }
+   if (!ok) {
       Settings_defaultMeters(this);
       this->hideKernelThreads = true;
       this->highlightMegabytes = true;
