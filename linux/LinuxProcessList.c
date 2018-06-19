@@ -616,6 +616,34 @@ static unsigned int LinuxProcessList_readVpsAdminOSUgid(const char* dirname, con
    return host_id;
 }
 
+static pid_t LinuxProcessList_readVpsAdminOSCtPid(const char* dirname, const char* name) {
+   char filename[MAX_NAME+1];
+   xSnprintf(filename, MAX_NAME, "%s/%s/status", dirname, name);
+   FILE* file = fopen(filename, "r");
+
+   if (!file)
+      return 0;
+
+   char buffer[PROC_LINE_LENGTH + 1];
+
+   while (fgets(buffer, PROC_LINE_LENGTH, file)) {
+      if (String_startsWith(buffer, "NSpid:")) {
+         pid_t ctpid;
+         int ok = sscanf(buffer, "NSpid:\t%*d %d", &ctpid);
+
+         fclose(file);
+
+         if (ok == 1)
+            return ctpid;
+         else
+            return 0;
+      }
+   }
+
+   fclose(file);
+   return 0;
+}
+
 static void LinuxProcessList_readVpsAdminOSData(LinuxProcess* process, const char* dirname, const char* name) {
    char filename[MAX_NAME+1];
    xSnprintf(filename, MAX_NAME, "%s/%s/cgroup", dirname, name);
@@ -658,6 +686,7 @@ static void LinuxProcessList_readVpsAdminOSData(LinuxProcess* process, const cha
    fclose(file);
 
    process->ns_uid = (uid_t) LinuxProcessList_readVpsAdminOSUgid(dirname, name, process->super.st_uid, "uid_map");
+   process->ctpid = LinuxProcessList_readVpsAdminOSCtPid(dirname, name);
    return;
 
 err:
@@ -666,6 +695,7 @@ err:
 
    process->pool = NULL;
    process->ctid = NULL;
+   process->ctpid = 0;
    process->ns_uid = process->super.st_uid;
 }
 

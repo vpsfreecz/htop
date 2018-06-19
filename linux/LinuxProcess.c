@@ -92,8 +92,9 @@ typedef enum LinuxProcessFields {
    OSCTL_POOL=119,
    OSCTL_CTID = 120,
    NS_UID = 121,
+   OSCTL_CTPID = 122,
    #endif
-   LAST_PROCESSFIELD = 122,
+   LAST_PROCESSFIELD = 123,
 } LinuxProcessField;
 
 #include "IOPriority.h"
@@ -151,6 +152,7 @@ typedef struct LinuxProcess_ {
    #ifdef HAVE_VPSADMINOS
    char *pool;
    char *ctid;
+   pid_t ctpid;
    uid_t ns_uid;
    #endif
 } LinuxProcess;
@@ -254,6 +256,7 @@ ProcessFieldData Process_fields[] = {
    [OSCTL_POOL] = { .name = "Pool", .title = "   Pool ", .description = "vpsAdminOS pool name", .flags = PROCESS_FLAG_LINUX_VPSADMINOS, },
    [OSCTL_CTID] = { .name = "CTID", .title = "   CTID ", .description = "vpsAdminOS container ID", .flags = PROCESS_FLAG_LINUX_VPSADMINOS, },
    [NS_UID] = { .name = "NSUID", .title = "  NSUID ", .description = "user ID within user namespace", .flags = PROCESS_FLAG_LINUX_VPSADMINOS, },
+   [OSCTL_CTPID] = { .name = "CTPID", .title = "  CTPID ", .description = "Process ID within the container", .flags = PROCESS_FLAG_LINUX_VPSADMINOS, },
 #endif
    [LAST_PROCESSFIELD] = { .name = "*** report bug! ***", .title = NULL, .description = NULL, .flags = 0, },
 };
@@ -263,6 +266,9 @@ ProcessPidColumn Process_pidColumns[] = {
    { .id = PPID, .label = "PPID" },
    #ifdef HAVE_OPENVZ
    { .id = VPID, .label = "VPID" },
+   #endif
+   #ifdef HAVE_VPSADMINOS
+   { .id = OSCTL_CTPID, .label = "CTPID" },
    #endif
    { .id = TPGID, .label = "TPGID" },
    { .id = TGID, .label = "TGID" },
@@ -433,8 +439,10 @@ void LinuxProcess_writeField(Process* this, RichString* str, ProcessField field)
       xSnprintf(buffer, n, "%7s ", lp->pool ? lp->pool : "-"); break;
    case OSCTL_CTID:
       xSnprintf(buffer, n, "%7s ", lp->ctid ? lp->ctid : "-"); break;
+   case OSCTL_CTPID:
+      xSnprintf(buffer, n, Process_pidFormat, lp->ctpid ? lp->ctpid : 0); break;
    case NS_UID:
-      xSnprintf(buffer, n, "%7u ", lp->ctid ? lp->ns_uid : lp->super.st_uid); break;
+      xSnprintf(buffer, n, "%8u ", lp->ctid ? lp->ns_uid : lp->super.st_uid); break;
    #endif
    default:
       Process_writeField((Process*)this, str, field);
@@ -530,6 +538,16 @@ long LinuxProcess_compare(const void* v1, const void* v2) {
       else if (p1->ctid)
          return 1;
       else if (p2->ctid)
+         return -1;
+      else
+         return 0;
+   }
+   case OSCTL_CTPID: {
+      if (p1->ctpid && p2->ctpid)
+         return (p1->ctpid - p2->ctpid);
+      else if (p1->ctpid)
+         return 1;
+      else if (p2->ctpid)
          return -1;
       else
          return 0;
